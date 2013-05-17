@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-import os
-import os.path
-import sys
 import HTMLParser
 import time
 
@@ -22,16 +19,24 @@ def doOptions() :
 		doOptions needs a description...
 
 	'''
-	options = {}
+	from optparse import OptionParser
 
-	options[ 'depth' ] = 100
-	options[ 'list' ] = 'nfl'
+	usage = "  %prog [options]"
+	parser = OptionParser( usage = usage )
+	parser.add_option( "-d", "--depth", dest="depth", default = 100,
+						help="How big a queue are we going to be using internally?" )
+	parser.add_option( "", "--list", dest="list", default = None,
+						help="Which list are we using?" )
+	parser.add_option( "", "--outFileName", dest="outFileName", default = 'twitter-log.txt',
+						help="What file are we logging to?" )
 
-	options[ 'outFile' ] = None
+	( options, args ) = parser.parse_args()
 
-	options[ 'outFileName' ] = 'twitter-log.txt'
-	options[ 'outFilePath' ] = '%s/%s' % ( '/tmp/', options[ 'outFileName' ] )
+	print options
 
+	setattr( options, 'listId', None )
+	setattr( options, 'outFile', None )
+	setattr( options, 'outFilePath', '%s/%s' % ( '/tmp/', options.outFileName ))
 
 	return options
 
@@ -41,7 +46,11 @@ def getTweets( twitter, options ) :
 		getTweets needs a description...
 
 	'''
-	tweets = twitter.lists.statuses( list_id = options[ 'list-id' ], count = options[ 'depth' ] )
+	tweets = None
+	if None != options.listId :
+		tweets = twitter.lists.statuses( list_id = options.listId, count = options.depth )
+	else :
+		tweets = twitter.statuses.home_timeline( count = options.depth )
 
 	return tweets
 
@@ -62,9 +71,12 @@ def flush( options ) :
 		flush needs a description...
 
 	'''
+	import os
+	import sys
+
 	sys.stdout.flush()
 
-	outFile = options[ 'outFile' ]
+	outFile = options.outFile
 	if None != outFile :
 		if not outFile.closed :
 			outFile.flush()
@@ -78,9 +90,8 @@ def printText( text, options ) :
 	'''
 	print text
 
-	outFile = options[ 'outFile' ]
-	if None != outFile :
-		outFile.write( '%s\n' % text )
+	if None != options.outFile :
+		options.outFile.write( '%s\n' % text )
 
 
 def run( twitter, options ) :
@@ -119,13 +130,14 @@ def main() :
 	'''
 	import codecs
 	import datetime
+	import os.path
 
 	options = doOptions()
 
 	oauthFile = os.path.expanduser( '.twitter_oauth' )
 	oauth_token, oauth_token_secret = read_token_file( oauthFile )
 
-	options[ 'outFile' ] = codecs.open( options[ 'outFilePath' ], mode='a', encoding='utf8' )
+	options.outFile = codecs.open( options.outFilePath, mode='a', encoding='utf8' )
 
 	twitter = Twitter( auth=OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET ),
 						api_version='1.1', )
@@ -135,20 +147,19 @@ def main() :
 
 	myLists = twitter.lists.list()
 	for aList in myLists :
-		if options[ 'list' ] == aList[ 'slug' ] :
-			options[ 'list-id' ] = aList[ 'id' ]
+		if options.list == aList[ 'slug' ] :
+			options.listId = aList[ 'id' ]
 
-	options[ 'screen_name ' ] = twitter.account.verify_credentials()[ 'screen_name' ]
+	setattr( options, 'screen_name', twitter.account.verify_credentials()[ 'screen_name' ] )
+
 	run( twitter, options )
 
-	outFile = options[ 'outFile' ]
-	if None != outFile :
-		if not outFile.closed :
-			outFile.close()
+	if None != options.outFile :
+		if not options.outFile.closed :
+			options.outFile.close()
 
 
 if __name__ == "__main__" :
 	main()
-
 
 
