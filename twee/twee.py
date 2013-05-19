@@ -25,14 +25,18 @@ def doOptions() :
 	parser = OptionParser( usage = usage )
 	parser.add_option( "-d", "--depth", dest="depth", default = 100,
 						help="How big a queue are we going to be using internally?" )
+	parser.add_option( "-b", "--background", dest="background", default = False,
+						action="store_true",
+						help="Which list are we using?" )
 	parser.add_option( "", "--list", dest="list", default = None,
 						help="Which list are we using?" )
+	parser.add_option( "-l", "--logging", dest="saveLog", default = False,
+						action="store_true",
+						help="Determine if we save a log file." )
 	parser.add_option( "", "--outFileName", dest="outFileName", default = 'twitter-log.txt',
 						help="What file are we logging to?" )
 
 	( options, args ) = parser.parse_args()
-
-	print options
 
 	setattr( options, 'listId', None )
 	setattr( options, 'outFile', None )
@@ -60,7 +64,9 @@ def tweetText( tweet ) :
 		tweetText needs a description...
 
 	'''
-	info = '%s @%s (%s) on %s' % ( tweet[ 'user'][ 'name' ], tweet[ 'user'][ 'screen_name' ], tweet[ 'user'][ 'location' ], tweet[ 'created_at' ] )
+	info = '%s @%s (%s) on %s' % ( tweet[ 'user'][ 'name' ],
+									tweet[ 'user'][ 'screen_name' ],
+									tweet[ 'user'][ 'location' ], tweet[ 'created_at' ] )
 	text = gHtmlParser.unescape( tweet[ 'text' ])
 
 	return '%s\n%s\n' % ( info, text )
@@ -88,7 +94,8 @@ def printText( text, options ) :
 		printText needs a description...
 
 	'''
-	print text
+	if not options.background :
+		print text
 
 	if None != options.outFile :
 		options.outFile.write( '%s\n' % text )
@@ -99,6 +106,7 @@ def run( twitter, options ) :
 		run needs a description...
 
 	'''
+	import sys
 	import traceback
 
 	seen = []
@@ -113,8 +121,13 @@ def run( twitter, options ) :
 
 				newTweets.append( text )
 			seen = newTweets
-		except ( KeyboardInterrupt, SystemExit ) :
+
+		except KeyboardInterrupt :
+			sys.exit( 0 )
+
+		except SystemExit :
 			raise
+
 		except :
 			traceback.print_exc()
 
@@ -131,13 +144,15 @@ def main() :
 	import codecs
 	import datetime
 	import os.path
+	import traceback
 
 	options = doOptions()
 
 	oauthFile = os.path.expanduser( '.twitter_oauth' )
 	oauth_token, oauth_token_secret = read_token_file( oauthFile )
 
-	options.outFile = codecs.open( options.outFilePath, mode='a', encoding='utf8' )
+	if options.saveLog :
+		options.outFile = codecs.open( options.outFilePath, mode='a', encoding='utf8' )
 
 	twitter = Twitter( auth=OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET ),
 						api_version='1.1', )
@@ -152,7 +167,12 @@ def main() :
 
 	setattr( options, 'screen_name', twitter.account.verify_credentials()[ 'screen_name' ] )
 
-	run( twitter, options )
+	try :
+		run( twitter, options )
+	except KeyboardInterrupt :
+		pass
+	except :
+		traceback.print_exc()
 
 	if None != options.outFile :
 		if not options.outFile.closed :
