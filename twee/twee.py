@@ -12,6 +12,37 @@ CONSUMER_KEY = 'uS6hO2sV6tDKIOeVjhnFnQ'
 CONSUMER_SECRET = 'MEYTOS97VvlHX7K1rwHPEqVpTSqZ71HtvoK4sVuYk'
 
 gHtmlParser = HTMLParser.HTMLParser()
+_timeZone = None
+
+
+def getOlsonName() :
+	'''
+		get the Olson name (timezone) for the local system
+
+	'''
+	import os
+
+	olsonName = None
+
+	try :
+		olsonName = '/'.join( os.readlink( '/etc/localtime' ).split( '/' )[ -2 : ])
+	except OSError :
+		from hashlib import sha224
+
+		tzFile = open('/etc/localtime')
+		tzFileDigest = sha224( tzFile.read() ).hexdigest()
+		tzFile.close()
+
+		for root, dirs, filenames in os.walk( '/usr/share/zoneinfo/' ) :
+			for filename in filenames :
+				fullname = os.path.join( root, filename )
+				f = open( fullname )
+				digest = sha224( f.read() ).hexdigest()
+				if digest == tzFileDigest:
+					olsonName = '/'.join(( fullname.split( '/' ))[ -2 : ])
+				f.close()
+
+	return olsonName
 
 
 def doOptions() :
@@ -28,6 +59,8 @@ def doOptions() :
 	parser.add_option( "-b", "--background", dest="background", default = False,
 						action="store_true",
 						help="Which list are we using?" )
+	parser.add_option( "", "--logPath", dest="logPath", default = '/tmp/',
+						help="Directory for the log file" )
 	parser.add_option( "", "--list", dest="list", default = None,
 						help="Which list are we using?" )
 	parser.add_option( "-l", "--logging", dest="saveLog", default = False,
@@ -40,7 +73,7 @@ def doOptions() :
 
 	setattr( options, 'listId', None )
 	setattr( options, 'outFile', None )
-	setattr( options, 'outFilePath', '%s/%s' % ( '/tmp/', options.outFileName ))
+	setattr( options, 'outFilePath', '%s/%s' % ( options.logPath, options.outFileName ))
 
 	return options
 
@@ -64,9 +97,17 @@ def tweetText( tweet ) :
 		tweetText needs a description...
 
 	'''
-	info = '%s @%s (%s) on %s' % ( tweet[ 'user'][ 'name' ],
+	global _timeZone
+	time = tweet[ 'created_at' ]
+	if _timeZone is not None :
+		from dateutil import parser
+		dt = parser.parse( time )
+		localDt = dt.astimezone( _timeZone )
+		time = localDt.strftime( '%Y-%m-%d %H:%M:%S' )
+
+	info = '%s @%s (%s) at %s' % ( tweet[ 'user'][ 'name' ],
 									tweet[ 'user'][ 'screen_name' ],
-									tweet[ 'user'][ 'location' ], tweet[ 'created_at' ] )
+									tweet[ 'user'][ 'location' ], time )
 	text = gHtmlParser.unescape( tweet[ 'text' ])
 
 	return '%s\n%s\n' % ( info, text )
@@ -147,6 +188,12 @@ def main() :
 	import traceback
 
 	options = doOptions()
+
+	olsonName = getOlsonName()
+	if None is not olsonName :
+		from pytz import timezone
+		global _timeZone
+		_timeZone = timezone( olsonName )
 
 	oauthFile = os.path.expanduser( '.twitter_oauth' )
 	oauth_token, oauth_token_secret = read_token_file( oauthFile )
