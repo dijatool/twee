@@ -45,6 +45,30 @@ def getOlsonName() :
 	return olsonName
 
 
+def tweeDir() :
+	'''
+		Create the .twee directory if needed and return the path when finished.
+
+	'''
+	import os, os.path
+
+	tweeDir = os.path.expanduser( '~/.twee/' )
+	if not os.path.exists( tweeDir ) :
+		# create the path
+		os.mkdir( tweeDir )
+
+	return tweeDir
+
+
+def tweePath( options, name ) :
+	'''
+		Generate a path string for the file name in question
+
+	'''
+	import os.path
+	return os.path.join( options.tweeDir, name )
+
+
 def doOptions() :
 	'''
 		doOptions needs a description...
@@ -74,6 +98,7 @@ def doOptions() :
 	setattr( options, 'listId', None )
 	setattr( options, 'outFile', None )
 	setattr( options, 'outFilePath', '%s/%s' % ( options.logPath, options.outFileName ))
+	setattr( options, 'tweeDir', tweeDir() )
 
 	return options
 
@@ -170,6 +195,8 @@ def run( twitter, options ) :
 			raise
 
 		except :
+			import datetime
+			print datetime.datetime.now()
 			traceback.print_exc()
 
 		flush( options )
@@ -195,7 +222,10 @@ def main() :
 		global _timeZone
 		_timeZone = timezone( olsonName )
 
-	oauthFile = os.path.expanduser( '.twitter_oauth' )
+	oauthFile = tweePath( options, 'auth' )
+	# should add code to handle the handshake...
+	# from twitter.oauth_dance import oauth_dance
+	# oauth_dance( "the Command-Line Tool", CONSUMER_KEY, CONSUMER_SECRET, options['oauth_filename'])
 	oauth_token, oauth_token_secret = read_token_file( oauthFile )
 
 	if options.saveLog :
