@@ -22,15 +22,9 @@ setup (
 	long_description = _longDesc,
 	author = 'Dave Ely',
 	author_email='dely@dijatool.com',
-	#packages = [ 'twee' ],
 	packages = find_packages(),
 	license='BSD License',
-
-	# need to add dependency information...
-	# needs 'twitter'
-	# anything else?
-	# soup!!
-
+	install_requires = [ 'python-dateutil>=2.1', 'pytz>=2013b', 'twitter>=1.9.4' ],
 	classifiers = [	'Development Status :: 2 - Pre-Alpha',
 					'Intended Audience :: Developers',
 					'License :: OSI Approved :: BSD License',
