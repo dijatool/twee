@@ -130,9 +130,10 @@ def tweetText( tweet ) :
 		localDt = dt.astimezone( _timeZone )
 		time = localDt.strftime( '%Y-%m-%d %H:%M:%S' )
 
-	info = '%s @%s (%s) at %s' % ( tweet[ 'user'][ 'name' ],
-									tweet[ 'user'][ 'screen_name' ],
-									tweet[ 'user'][ 'location' ], time )
+	info = '@%s (%s in %s) at %s' % (	tweet[ 'user'][ 'screen_name' ],
+										tweet[ 'user'][ 'name' ],
+										tweet[ 'user'][ 'location' ],
+										time )
 	text = gHtmlParser.unescape( tweet[ 'text' ])
 
 	return '%s\n%s\n' % ( info, text )
