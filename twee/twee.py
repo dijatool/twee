@@ -29,7 +29,7 @@ def getOlsonName() :
 	except OSError :
 		from hashlib import sha224
 
-		tzFile = open('/etc/localtime')
+		tzFile = open( '/etc/localtime' )
 		tzFileDigest = sha224( tzFile.read() ).hexdigest()
 		tzFile.close()
 
@@ -92,6 +92,9 @@ def doOptions() :
 						help="Determine if we save a log file." )
 	parser.add_option( "", "--outFileName", dest="outFileName", default = 'twitter-log.txt',
 						help="What file are we logging to?" )
+	parser.add_option( "", "--dumpLists", dest="dumpLists", default = False,
+						action="store_true",
+						help="Dump the names in all our lists?" )
 
 	( options, args ) = parser.parse_args()
 
@@ -239,22 +242,34 @@ def main() :
 	twitter = Twitter( auth=OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET ),
 						api_version='1.1', )
 
-	printText( '-=-=' * 10, options )
-	printText( 'Starting @ %s\n' % datetime.datetime.utcnow(), options )
-
-	myLists = twitter.lists.list()
+	myLists = twitter.lists.list( reverse=True )
 	for aList in myLists :
 		if options.list == aList[ 'slug' ] :
 			options.listId = aList[ 'id' ]
+		if options.dumpLists :
+			print aList[ 'slug' ]
+			cursor = -1
+			while cursor != 0 :
+				## https://dev.twitter.com/docs/api/1.1/get/lists/members
+				members = twitter.lists.members( list_id = aList[ 'id' ], cursor = cursor )
+				users = members[ 'users' ]
+				for aUser in users :
+					print aUser[ 'screen_name' ]
+				cursor = members[ 'next_cursor' ]
+			print '=-=-=-=-=-=-'
+			print
 
 	setattr( options, 'screen_name', twitter.account.verify_credentials()[ 'screen_name' ] )
 
-	try :
-		run( twitter, options )
-	except KeyboardInterrupt :
-		pass
-	except :
-		traceback.print_exc()
+	if not options.dumpLists :
+		printText( '-=-=' * 10, options )
+		printText( 'Starting @ %s\n' % datetime.datetime.utcnow(), options )
+		try :
+			run( twitter, options )
+		except KeyboardInterrupt :
+			pass
+		except :
+			traceback.print_exc()
 
 	if None != options.outFile :
 		if not options.outFile.closed :
